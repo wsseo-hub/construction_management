@@ -3,6 +3,8 @@ from streamlit_option_menu import option_menu
 import pandas as pd
 from streamlit_echarts import st_echarts  # 추가됨
 from pathlib import Path
+import subprocess
+import platform
 
 # =========================
 # 기본 설정
@@ -12,7 +14,32 @@ st.set_page_config(
     page_icon="📊",
     layout="wide"
 )
-
+# =========================
+# 하드웨어 ID(메인보드) 추출 함수
+# =========================
+def get_motherboard_id():
+    try:
+        current_os = platform.system()
+        if current_os == "Windows":
+            # Windows: wmic 명령어를 사용하여 시리얼 번호 추출
+            cmd = "wmic baseboard get serialnumber"
+            res = subprocess.check_output(cmd, shell=True).decode().split('\n')
+            return res[1].strip() if len(res) > 1 else "Unknown"
+        elif current_os == "Darwin":
+            # macOS: ioreg 명령어를 사용하여 플랫폼 시리얼 추출
+            cmd = "ioreg -l | grep IOPlatformSerialNumber"
+            res = subprocess.check_output(cmd, shell=True).decode().split('"')
+            return res[3].strip() if len(res) > 3 else "Unknown"
+        elif current_os == "Linux":
+            # Linux: 시스템 보드 시리얼 파일 읽기 (권한 필요할 수 있음)
+            try:
+                with open("/sys/class/dmi/id/board_serial", "r") as f:
+                    return f.read().strip()
+            except:
+                return "Permission Denied"
+    except Exception:
+        return "ID 추출 불가"
+    return "Unknown"
 # =========================
 # 로그인 및 데이터 로드 로직 (기존과 동일)
 # =========================
@@ -21,17 +48,28 @@ def check_login(username, password):
 
 def login_page():
     st.title("🔐 로그인")
-    with st.form("login_form"):
-        username = st.text_input("아이디")
-        password = st.text_input("비밀번호", type="password")
-        submit = st.form_submit_button("로그인")
-        if submit:
-            if check_login(username, password):
-                st.session_state["logged_in"] = True
-                st.session_state["user"] = username
-                st.rerun()
-            else:
-                st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
+
+    # 중앙 정렬을 위한 컨테이너
+    with st.container():
+        with st.form("login_form"):
+            username = st.text_input("아이디")
+            password = st.text_input("비밀번호", type="password")
+            submit = st.form_submit_button("로그인", use_container_width=True)
+
+            if submit:
+                if check_login(username, password):
+                    st.session_state["logged_in"] = True
+                    st.session_state["user"] = username
+                    st.rerun()
+                else:
+                    st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
+    
+    # --- 하단 메인보드 ID 표시부 ---
+    st.write("---")
+    mb_id = get_motherboard_id()
+    # 작고 흐릿한 글씨로 표시 (caption 활용)
+    st.caption(f"💻 기기 인증 정보 (Hardware ID): **{mb_id}**")
+    st.caption("※ 본 시스템은 승인된 기기에서만 접속을 권장합니다.")
 
 @st.cache_data
 def load_cost_data():
