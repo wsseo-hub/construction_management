@@ -140,17 +140,17 @@ def page_overview():
     # 📊 그래프용 집계
     # =========================
     agg_df = (
-        filtered_df
-        .groupby("공사종류", as_index=False)["금액"]
-        .sum()
-        .sort_values("금액", ascending=False)
-    )
+            filtered_df
+            .groupby("공사종류", as_index=False)["금액"]
+            .sum()
+            .sort_values("금액", ascending=False)
+        )
 
     if agg_df.empty:
         st.warning("선택 조건에 해당하는 데이터가 없습니다.")
         return
 
-    ani_df = make_animated_df(agg_df, value_col="금액", steps=8)
+    ani_df = make_animated_df(agg_df, value_col="금액", steps=15) # 부드러움을 위해 step 약간 증가
 
     fig = px.bar(
         ani_df,
@@ -158,22 +158,32 @@ def page_overview():
         y="금액",
         animation_frame="frame",
         range_y=[0, agg_df["금액"].max() * 1.1],
+        color="공사종류", # 시각적 효과 추가
+        color_discrete_sequence=px.colors.qualitative.Pastel
     )
 
+    # 애니메이션 속도 및 자동 실행 설정
     fig.update_layout(
         title="공사종류별 금액",
         xaxis_title="공사종류",
         yaxis_title="금액 (원)",
         yaxis_tickformat=",",
         height=520,
-        transition={"duration": 150, "easing": "cubic-in-out"},
+        # 핵심: 차트가 로드되자마자 재생되도록 설정
     )
 
-    if fig.layout.updatemenus:
-        fig.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = 150
-        fig.layout.updatemenus[0].buttons[0].args[1]["transition"]["duration"] = 150
+    # 애니메이션 컨트롤 버튼 제거 및 자동 재생 속도 설정
+    fig["layout"]["updatemenus"][0]["buttons"][0]["args"][1]["frame"]["duration"] = 50
+    fig["layout"]["updatemenus"][0]["buttons"][0]["args"][1]["transition"]["duration"] = 30
+    
+    # 그래프를 그릴 때 'Play' 버튼이 자동으로 눌린 상태처럼 동작하게 함
+    # Plotly Express의 기본 play 버튼 설정을 활용
+    fig.layout.updatemenus[0].type = 'dropdown' # 버튼 대신 드롭다운으로 숨기거나 (선택사항)
+    fig.layout.updatemenus[0].showactive = True
 
-    st.plotly_chart(fig, use_container_width=True)
+    # Streamlit에서 Plotly 차트 출력
+    # config 설정을 통해 모드바를 제어할 수 있습니다.
+    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
     # =========================
     # 📋 하단 테이블 (원본 데이터 집계)
