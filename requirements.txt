@@ -5,5 +5,3 @@ plotly
 pyarrow
 openpyxl
 streamlit_echarts
-subprocess
-platform
